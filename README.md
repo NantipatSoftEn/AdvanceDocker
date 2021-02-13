@@ -1,75 +1,126 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo_text.svg" width="320" alt="Nest Logo" /></a>
-</p>
+🧑🏼‍💻บันทึกการทำ Distroless Image ด้วยตัวเอง
+บทความนี้เขียนเพื่อบันทึกความเข้าใจของผมถ้าผิดตรงไหนก็บอกด้วยหล่ะ 👀
 
-[travis-image]: https://api.travis-ci.org/nestjs/nest.svg?branch=master
-[travis-url]: https://travis-ci.org/nestjs/nest
-[linux-image]: https://img.shields.io/travis/nestjs/nest/master.svg?label=linux
-[linux-url]: https://travis-ci.org/nestjs/nest
-  
-  <p align="center">A progressive <a href="http://nodejs.org" target="blank">Node.js</a> framework for building efficient and scalable server-side applications, heavily inspired by <a href="https://angular.io" target="blank">Angular</a>.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore"><img src="https://img.shields.io/npm/dm/@nestjs/core.svg" alt="NPM Downloads" /></a>
-<a href="https://travis-ci.org/nestjs/nest"><img src="https://api.travis-ci.org/nestjs/nest.svg?branch=master" alt="Travis" /></a>
-<a href="https://travis-ci.org/nestjs/nest"><img src="https://img.shields.io/travis/nestjs/nest/master.svg?label=linux" alt="Linux" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#5" alt="Coverage" /></a>
-<a href="https://gitter.im/nestjs/nestjs?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=body_badge"><img src="https://badges.gitter.im/nestjs/nestjs.svg" alt="Gitter" /></a>
-<a href="https://opencollective.com/nest#backer"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec"><img src="https://img.shields.io/badge/Donate-PayPal-dc3d53.svg"/></a>
-  <a href="https://twitter.com/nestframework"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## ที่มา Docker version Alpine
 
-## Description
+โครงการของ Alpine Linux นี้ก็ถูกพัฒนาขึ้นมาเพื่อตอบโจทย์การใช้ Container ให้มีขนาดไม่เกิน 8MB และใช้พื้นที่รวมไม่เกิน 130 MB รวมถึงยังถูกออกแบบมาให้มีความปลอดภัยสูง เมื่อทำการติดตั้งเครื่องมือต่างๆ เข้าไปจะมีขนาดอยู่ประมาณ 200MB ซึ่งก็ยังมีขนาดที่น้อยกว่าของเวอร์ชั่น “slim“ อยู่ดี
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+แต่มันก็ยังมีขนาดใหญ่อยู่ดีเพราะยังมี OS packed อยู่
 
-## Installation
+## ว่าด้วยเรื่องของแต่ละ version docker แบบย่อ
 
-```bash
-$ npm install
+### stretch/buster/jessie
+
+stretch/buster/jessie is codenamed รุ่นที่ต่างกันของ Debian
+
+- “Buster” was the codename for all version 10
+- “Stretch” was the codename for all version 9
+- “Jessie” was the codename for all version 8
+
+### Slim images
+
+ติดตั้งแพ็คเกจขั้นต่ำที่จำเป็นในการเรียกใช้
+
+### Alpine
+
+กลับไปอ่านด้านบน
+
+> มันยังไม่ดีพอที่จะใช้แค่ Alpine application runtime image
+> เราควรจะตัด OS เพื่อให้มันเล็กสุดๆ
+
+---
+
+![Screenshot_23](https://dev-to-uploads.s3.amazonaws.com/i/cahnzasvsnfgzndrp19k.png)
+
+ในที่นี้ผมจะลองเป็น Nodejs
+
+## มาดูความหมายของกันอีกที "Distroless"
+
+> images contain only your application and its runtime dependencies. They do not contain package managers, shells or any other programs you would expect to find in a standard Linux distribution.
+
+## มาดู Dockerfile ที่เตรียมไว้
+
+```dockerfile
+FROM node:14-slim AS build-env
+# ที่ทำงานของเรา
+
+WORKDIR /usr/src/app
+
+COPY package*.json ./
+
+RUN npm ci --only=production
+
+# if not COPY.. will  ERROR nest: not found
+COPY . .
+
+RUN npm run build
+
+FROM node:14-slim
+
+WORKDIR /usr/src/app
+
+COPY --from=build-env /usr/src/app ./
+
+CMD ["npm", "run", "start:prod"]
+
+
+# FROM gcr.io/distroless/nodejs:14
+
+# COPY --from=build-env /usr/src/app /usr/src/app
+# WORKDIR /usr/src/app
+
 ```
 
-## Running the app
+> dockerfile แบบ build production ธรรมดา
 
-```bash
-# development
-$ npm run start
+> ตอน build มันสั่ง `nest build` แล้วมันจะหา nest ใน /usr/src/app ต้องถอยมาที่ root directory
 
-# watch mode
-$ npm run start:dev
+## ลองแบบ Distroless Image
 
-# production mode
-$ npm run start:prod
+```dockerfile
+FROM node:14-slim AS build-env
+# ที่ทำงานของเรา
+
+WORKDIR /usr/src/app
+
+COPY package*.json ./
+
+RUN npm ci
+
+#if not COPY.. will  ERROR nest: not found
+COPY . .
+RUN npm run build
+
+
+# FROM node:14-slim
+# WORKDIR /usr/src/app
+# COPY --from=build-env /usr/src/app ./
+# CMD ["npm", "run", "start:prod"]
+
+
+FROM gcr.io/distroless/nodejs:14
+WORKDIR /usr/src/app
+
+COPY --from=build-env /usr/src/app ./
+
+CMD ["./dist/main.js"]
 ```
 
-## Test
+> เปลี่ยนเป็น "./dist/main.js" เพราะว่า
+>
+> > The entrypoint of this image is set to "node"
+> > [document of distroless](https://github.com/GoogleContainerTools/distroless/blob/master/nodejs/README.md)
+> > จะได้ผลลัพท์แบบนี้
+> > ![Screenshot_2](https://dev-to-uploads.s3.amazonaws.com/i/lvon1yz2wpq8lyp6ygps.png)
 
-```bash
-# unit tests
-$ npm run test
+**reference**:
 
-# e2e tests
-$ npm run test:e2e
+- [distroless image](https://github.com/GoogleContainerTools/distroless)
 
-# test coverage
-$ npm run test:cov
-```
+- [เลือก Docker image แบบไหนดี สำหรับการพัฒนา NodeJS](https://igokuz.com/%E0%B9%80%E0%B8%A5%E0%B8%B7%E0%B8%AD%E0%B8%81-docker-image-%E0%B9%81%E0%B8%9A%E0%B8%9A%E0%B9%84%E0%B8%AB%E0%B8%99%E0%B8%94%E0%B8%B5-%E0%B8%AA%E0%B8%B3%E0%B8%AB%E0%B8%A3%E0%B8%B1%E0%B8%9A%E0%B8%81%E0%B8%B2%E0%B8%A3%E0%B8%9E%E0%B8%B1%E0%B8%92%E0%B8%99%E0%B8%B2-nodejs-d2c966ea1e3b)
 
-## Support
+- [ลอง Setup โปรเจค Docker + Node.js ง่ายๆ สำหรับ Dev และ Production](https://medium.com/insightera/%E0%B8%A5%E0%B8%AD%E0%B8%87-setup-%E0%B9%82%E0%B8%9B%E0%B8%A3%E0%B9%80%E0%B8%88%E0%B8%84-docker-node-js-%E0%B8%87%E0%B9%88%E0%B8%B2%E0%B8%A2%E0%B9%86-%E0%B8%AA%E0%B8%B3%E0%B8%AB%E0%B8%A3%E0%B8%B1%E0%B8%9A-dev-%E0%B9%81%E0%B8%A5%E0%B8%B0-production-e41b0f21cec1)
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+- [version ของ docker](https://medium.com/swlh/alpine-slim-stretch-buster-jessie-bullseye-bookworm-what-are-the-differences-in-docker-62171ed4531d)
 
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-  Nest is [MIT licensed](LICENSE).
+- [How to Dockerize your NestJS App for production](https://dev.to/abbasogaji/how-to-dockerize-your-nestjs-app-for-production-2lmf)
