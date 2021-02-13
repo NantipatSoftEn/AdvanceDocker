@@ -1,0 +1,8 @@
+version: '3'
+services:
+  backend:
+    container_name: nestjs
+    build: .
+    image: nestjs
+    ports:
+      - '3000:3000'
